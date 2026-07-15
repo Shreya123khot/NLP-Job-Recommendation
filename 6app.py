@@ -18,39 +18,32 @@ st.set_page_config(
 )
 
 
-# ---------------- CUSTOM STYLE ----------------
+# ---------------- CUSTOM CSS ----------------
 
 st.markdown("""
 <style>
 
 .main{
-    background:#f5f7fb;
+    background:#f8f9fc;
 }
 
 
-.header{
-
-    background:linear-gradient(135deg,#667eea,#764ba2);
-    padding:40px;
-    border-radius:25px;
+.title{
     text-align:center;
-    color:white;
-    margin-bottom:30px;
-
+    font-size:50px;
+    font-weight:800;
+    background:linear-gradient(90deg,#667eea,#764ba2);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    margin-top:20px;
 }
 
 
-.header h1{
-
-    font-size:45px;
-
-}
-
-
-.header h2{
-
-    font-size:25px;
-
+.subtitle{
+    text-align:center;
+    font-size:22px;
+    color:#555;
+    margin-bottom:40px;
 }
 
 
@@ -59,8 +52,8 @@ st.markdown("""
     background:white;
     padding:25px;
     border-radius:20px;
-    box-shadow:0px 5px 20px rgba(0,0,0,0.12);
-    margin:20px 0px;
+    box-shadow:0px 5px 20px rgba(0,0,0,0.10);
+    margin-top:20px;
 
 }
 
@@ -73,6 +66,7 @@ st.markdown("""
     background:linear-gradient(90deg,#667eea,#764ba2);
     color:white;
     font-size:18px;
+    font-weight:bold;
 
 }
 
@@ -80,9 +74,19 @@ st.markdown("""
 .result{
 
     background:#e8f5e9;
-    padding:20px;
-    border-radius:15px;
+    padding:30px;
+    border-radius:20px;
     text-align:center;
+    margin-top:25px;
+
+}
+
+
+.footer{
+
+    text-align:center;
+    color:#777;
+    margin-top:50px;
 
 }
 
@@ -92,20 +96,20 @@ st.markdown("""
 
 
 
-# ---------------- HEADER ----------------
+# ---------------- TITLE ----------------
 
 
 st.markdown("""
 
-<div class="header">
+<div class="title">
+💼 AI Job Recommendation System
+</div>
 
-<h1>💼 AI Job Recommendation System</h1>
+<div class="subtitle">
 
-<h2>Find Your Best Career Category Using NLP</h2>
-
-<p>
-Get personalized job category recommendations based on your resume
-</p>
+Find Your Best Career Opportunity Using NLP 🤖
+<br>
+Resume Based Intelligent Job Category Recommendation
 
 </div>
 
@@ -117,7 +121,7 @@ Get personalized job category recommendations based on your resume
 
 
 @st.cache_data
-def load_dataset():
+def load_data():
 
     df = pd.read_csv("Resume.csv")
 
@@ -125,7 +129,7 @@ def load_dataset():
 
 
 
-df = load_dataset()
+df = load_data()
 
 
 
@@ -139,7 +143,7 @@ def clean_text(text):
     text = text.lower()
 
     text = re.sub(
-        r'[^a-zA-Z]',
+        r'[^a-zA-Z ]',
         ' ',
         text
     )
@@ -150,76 +154,102 @@ def clean_text(text):
         text
     )
 
-    return text
+    return text.strip()
 
 
 
-df["clean_resume"] = df["Resume"].apply(clean_text)
+# Dataset column check
+
+if "Resume" in df.columns:
+
+    resume_column = "Resume"
+
+elif "Resume_str" in df.columns:
+
+    resume_column = "Resume_str"
+
+else:
+
+    st.error("Resume column not found in dataset")
+
+    st.stop()
 
 
 
-# ---------------- VECTOR CREATION ----------------
-
-
-vectorizer = TfidfVectorizer(
-    stop_words="english",
-    max_features=5000
-)
-
-
-resume_vectors = vectorizer.fit_transform(
-    df["Clean_Resume"]
-)
+df["Clean_Resume"] = df[resume_column].apply(clean_text)
 
 
 
-# ---------------- RESUME UPLOAD ----------------
+# ---------------- NLP MODEL ----------------
 
 
-st.markdown("""
-<div class="card">
+@st.cache_resource
+def train_model(data):
 
-<h2>📄 Upload Your Resume</h2>
-
-<p>
-Upload your resume file to get suitable job categories.
-</p>
-
-</div>
-
-""", unsafe_allow_html=True)
-
-
-
-uploaded_file = st.file_uploader(
-    "Choose Resume File",
-    type=["txt"]
-)
-
-
-
-# ---------------- PREDICTION ----------------
-
-
-if uploaded_file:
-
-
-    resume = uploaded_file.read().decode(
-        "utf-8"
+    vectorizer = TfidfVectorizer(
+        stop_words="english",
+        max_features=5000
     )
 
 
-    cleaned_resume = clean_text(resume)
+    vectors = vectorizer.fit_transform(
+        data["Clean_Resume"]
+    )
+
+
+    return vectorizer, vectors
 
 
 
-    if st.button(
-        "🔍 Find Recommendation"
-    ):
+vectorizer, resume_vectors = train_model(df)
+
+
+
+# ---------------- USER INPUT ----------------
+
+
+st.markdown(
+"""
+<div class="card">
+
+<h2>📄 Upload Your Resume Details</h2>
+
+</div>
+""",
+unsafe_allow_html=True
+)
+
+
+user_resume = st.text_area(
+    "Paste your resume skills, education and experience",
+    height=200
+)
+
+
+
+# ---------------- BUTTON ----------------
+
+
+if st.button("🚀 Recommend Job"):
+
+
+    if user_resume.strip()=="":
+
+        st.warning(
+            "Please enter resume details"
+        )
+
+
+    else:
+
+
+        cleaned = clean_text(
+            user_resume
+        )
 
 
         user_vector = vectorizer.transform(
-            [cleaned_resume]
+            [cleaned]
         )
 
 
@@ -229,71 +259,51 @@ if uploaded_file:
         )
 
 
-        best_match = similarity.argmax()
+        index = similarity.argmax()
 
 
-        category = df.iloc[best_match]["Category"]
+        category = df.iloc[index]["Category"]
 
 
-        score = similarity[0][best_match] * 100
-
-
-
-        st.markdown("""
-        <div class="card">
-
-        <h2>🎯 Recommended Career Category</h2>
-
-        </div>
-        """,
-        unsafe_allow_html=True)
+        score = similarity[0][index]*100
 
 
 
-        st.markdown(f"""
+        st.markdown(
+
+        f"""
 
         <div class="result">
 
-        <h2>{category}</h2>
+        <h2>🎯 Recommended Career Category</h2>
+
+        <h1>{category}</h1>
+
+        <h3>Resume Match Score : {score:.2f}%</h3>
 
         </div>
 
         """,
-        unsafe_allow_html=True)
 
+        unsafe_allow_html=True
 
-
-        st.write("")
-
-
-        st.subheader("Matching Score")
-
-        st.progress(
-            int(score)
         )
-
-
-        st.success(
-            f"{score:.2f}% Match Found"
-        )
-
-
-
-        st.balloons()
 
 
 
 # ---------------- FOOTER ----------------
 
 
-st.markdown("""
-<br>
+st.markdown(
 
-<center>
+"""
+<div class="footer">
 
-Thank you for using our Job Recommendation System 💼
+✨ Powered by NLP | TF-IDF | Cosine Similarity
 
-</center>
-
+</div>
 """,
-unsafe_allow_html=True)
+
+unsafe_allow_html=True
+
+)
