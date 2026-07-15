@@ -4,7 +4,6 @@
 import streamlit as st
 import pandas as pd
 import re
-import pickle
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -19,53 +18,77 @@ st.set_page_config(
 )
 
 
-# ---------------- CSS ----------------
+# ---------------- CUSTOM STYLE ----------------
 
 st.markdown("""
 <style>
 
-body{
-background:#f5f7fb;
+.main{
+    background:#f5f7fb;
 }
 
+
 .header{
-background:linear-gradient(135deg,#667eea,#764ba2);
-padding:35px;
-border-radius:20px;
-text-align:center;
-color:white;
-box-shadow:0 10px 30px rgba(0,0,0,0.2);
+
+    background:linear-gradient(135deg,#667eea,#764ba2);
+    padding:40px;
+    border-radius:25px;
+    text-align:center;
+    color:white;
+    margin-bottom:30px;
+
 }
 
 
 .header h1{
-font-size:45px;
+
+    font-size:45px;
+
+}
+
+
+.header h2{
+
+    font-size:25px;
+
 }
 
 
 .card{
-background:white;
-padding:25px;
-border-radius:20px;
-box-shadow:0 5px 20px rgba(0,0,0,0.1);
-margin-top:20px;
+
+    background:white;
+    padding:25px;
+    border-radius:20px;
+    box-shadow:0px 5px 20px rgba(0,0,0,0.12);
+    margin:20px 0px;
+
 }
 
 
 .stButton button{
 
-background:linear-gradient(90deg,#667eea,#764ba2);
-color:white;
-width:100%;
-height:50px;
-border-radius:15px;
-font-size:18px;
+    width:100%;
+    height:50px;
+    border-radius:15px;
+    background:linear-gradient(90deg,#667eea,#764ba2);
+    color:white;
+    font-size:18px;
+
+}
+
+
+.result{
+
+    background:#e8f5e9;
+    padding:20px;
+    border-radius:15px;
+    text-align:center;
 
 }
 
 </style>
 
-""",unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 
 
@@ -78,17 +101,15 @@ st.markdown("""
 
 <h1>💼 AI Job Recommendation System</h1>
 
-<h3>
-Find Your Best Career Category Using NLP
-</h3>
+<h2>Find Your Best Career Category Using NLP</h2>
 
 <p>
-❤️ Python | 🧠 NLP | 📊 Machine Learning | 🚀 Streamlit
+Get personalized job category recommendations based on your resume
 </p>
 
 </div>
 
-""",unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 
 
@@ -96,15 +117,15 @@ Find Your Best Career Category Using NLP
 
 
 @st.cache_data
-def load_data():
+def load_dataset():
 
-    df=pd.read_csv("resume_dataset.csv")
+    df = pd.read_csv("resume_dataset.csv")
 
     return df
 
 
 
-df=load_data()
+df = load_dataset()
 
 
 
@@ -113,117 +134,147 @@ df=load_data()
 
 def clean_text(text):
 
-    text=str(text)
+    text = str(text)
 
-    text=text.lower()
+    text = text.lower()
 
-    text=re.sub('[^a-zA-Z]',' ',text)
+    text = re.sub(
+        r'[^a-zA-Z]',
+        ' ',
+        text
+    )
 
-    text=re.sub('\s+',' ',text)
+    text = re.sub(
+        r'\s+',
+        ' ',
+        text
+    )
 
     return text
 
 
 
-df["Clean_Resume"]=df["Resume"].apply(clean_text)
+df["Clean_Resume"] = df["Resume"].apply(clean_text)
 
 
 
-# ---------------- MODEL ----------------
+# ---------------- VECTOR CREATION ----------------
 
 
-vectorizer=TfidfVectorizer(
+vectorizer = TfidfVectorizer(
     stop_words="english",
     max_features=5000
 )
 
 
-resume_vectors=vectorizer.fit_transform(
+resume_vectors = vectorizer.fit_transform(
     df["Clean_Resume"]
 )
 
 
 
-# ---------------- USER INPUT ----------------
+# ---------------- RESUME UPLOAD ----------------
 
 
 st.markdown("""
 <div class="card">
 
-<h2>📄 Upload Resume</h2>
+<h2>📄 Upload Your Resume</h2>
+
+<p>
+Upload your resume file to get suitable job categories.
+</p>
 
 </div>
-""",unsafe_allow_html=True)
+
+""", unsafe_allow_html=True)
 
 
 
-resume_file=st.file_uploader(
-    "Upload your resume (.txt)",
+uploaded_file = st.file_uploader(
+    "Choose Resume File",
     type=["txt"]
 )
 
 
 
-if resume_file:
+# ---------------- PREDICTION ----------------
 
 
-    resume_text=resume_file.read().decode(
+if uploaded_file:
+
+
+    resume = uploaded_file.read().decode(
         "utf-8"
     )
 
 
-    cleaned_resume=clean_text(resume_text)
+    cleaned_resume = clean_text(resume)
 
 
 
-    if st.button("🔍 Find Best Job Category"):
+    if st.button(
+        "🔍 Find Recommendation"
+    ):
 
 
-
-        user_vector=vectorizer.transform(
+        user_vector = vectorizer.transform(
             [cleaned_resume]
         )
 
 
-        similarity=cosine_similarity(
+        similarity = cosine_similarity(
             user_vector,
             resume_vectors
         )
 
 
-        index=similarity.argmax()
+        best_match = similarity.argmax()
 
 
-        score=similarity[0][index]*100
+        category = df.iloc[best_match]["Category"]
 
 
-        category=df.iloc[index]["Category"]
+        score = similarity[0][best_match] * 100
 
 
 
         st.markdown("""
         <div class="card">
 
-        <h2>🎯 Recommended Job Category</h2>
+        <h2>🎯 Recommended Career Category</h2>
 
         </div>
-        """,unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True)
 
 
 
-        st.success(category)
+        st.markdown(f"""
+
+        <div class="result">
+
+        <h2>{category}</h2>
+
+        </div>
+
+        """,
+        unsafe_allow_html=True)
 
 
 
-        st.metric(
-            "Matching Score",
-            f"{score:.2f}%"
-        )
+        st.write("")
 
 
+        st.subheader("Matching Score")
 
         st.progress(
             int(score)
+        )
+
+
+        st.success(
+            f"{score:.2f}% Match Found"
         )
 
 
@@ -232,4 +283,17 @@ if resume_file:
 
 
 
-#
+# ---------------- FOOTER ----------------
+
+
+st.markdown("""
+<br>
+
+<center>
+
+Thank you for using our Job Recommendation System 💼
+
+</center>
+
+""",
+unsafe_allow_html=True)
