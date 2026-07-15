@@ -119,7 +119,7 @@ Get personalized job category recommendations based on your resume
 @st.cache_data
 def load_dataset():
 
-    df = pd.read_csv("resume_dataset.csv")
+    df = pd.read_csv("Resume.csv")
 
     return df
 
