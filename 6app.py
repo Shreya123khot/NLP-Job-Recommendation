@@ -154,7 +154,7 @@ def clean_text(text):
 
 
 
-df["Clean_Resume"] = df["Resume"].apply(clean_text)
+df["clean_resume"] = df["Resume"].apply(clean_text)
 
 
 
