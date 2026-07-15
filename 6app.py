@@ -3,110 +3,233 @@
 
 import streamlit as st
 import pandas as pd
+import re
 import pickle
+
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# -------------------- PAGE CONFIG --------------------
+
+# ---------------- PAGE CONFIG ----------------
+
 st.set_page_config(
     page_title="AI Job Recommendation System",
     page_icon="💼",
     layout="wide"
 )
 
-# -------------------- CUSTOM CSS --------------------
+
+# ---------------- CSS ----------------
+
 st.markdown("""
 <style>
-.main{
-    background-color:#f5f7fa;
+
+body{
+background:#f5f7fb;
 }
-.title{
-    text-align:center;
-    color:#0E76A8;
-    font-size:40px;
-    font-weight:bold;
+
+.header{
+background:linear-gradient(135deg,#667eea,#764ba2);
+padding:35px;
+border-radius:20px;
+text-align:center;
+color:white;
+box-shadow:0 10px 30px rgba(0,0,0,0.2);
 }
-.sub{
-    text-align:center;
-    color:gray;
-    font-size:18px;
+
+
+.header h1{
+font-size:45px;
 }
-.stButton>button{
-    background:#0E76A8;
-    color:white;
-    border-radius:10px;
-    height:50px;
-    width:100%;
-    font-size:18px;
+
+
+.card{
+background:white;
+padding:25px;
+border-radius:20px;
+box-shadow:0 5px 20px rgba(0,0,0,0.1);
+margin-top:20px;
 }
+
+
+.stButton button{
+
+background:linear-gradient(90deg,#667eea,#764ba2);
+color:white;
+width:100%;
+height:50px;
+border-radius:15px;
+font-size:18px;
+
+}
+
 </style>
-""", unsafe_allow_html=True)
 
-# -------------------- LOAD MODEL --------------------
-tfidf = pickle.load(open("tfidf.pkl", "rb"))
-df = pickle.load(open("resume_data.pkl", "rb"))
+""",unsafe_allow_html=True)
 
-# TF-IDF Matrix
-tfidf_matrix = tfidf.transform(df["Clean_Resume"])
 
-# -------------------- RECOMMEND FUNCTION --------------------
-def recommend_jobs(resume):
 
-    vector = tfidf.transform([resume])
+# ---------------- HEADER ----------------
 
-    similarity = cosine_similarity(vector, tfidf_matrix)
 
-    index = similarity.argsort()[0][-5:][::-1]
+st.markdown("""
 
-    result = df.iloc[index]
+<div class="header">
 
-    score = similarity[0][index]
+<h1>💼 AI Job Recommendation System</h1>
 
-    return result, score
+<h3>
+Find Your Best Career Category Using NLP
+</h3>
 
-# -------------------- HEADER --------------------
-st.markdown("<p class='title'>💼 AI Job Recommendation System</p>", unsafe_allow_html=True)
-st.markdown("<p class='sub'>Find the Best Job Category using NLP</p>", unsafe_allow_html=True)
+<p>
+❤️ Python | 🧠 NLP | 📊 Machine Learning | 🚀 Streamlit
+</p>
 
-st.sidebar.title("📌 Menu")
-st.sidebar.info("Paste your resume and click Recommend.")
+</div>
 
-# -------------------- INPUT --------------------
-resume = st.text_area(
-    "📄 Paste Your Resume Here",
-    height=300,
-    placeholder="Paste your resume..."
+""",unsafe_allow_html=True)
+
+
+
+# ---------------- LOAD DATA ----------------
+
+
+@st.cache_data
+def load_data():
+
+    df=pd.read_csv("resume_dataset.csv")
+
+    return df
+
+
+
+df=load_data()
+
+
+
+# ---------------- TEXT CLEANING ----------------
+
+
+def clean_text(text):
+
+    text=str(text)
+
+    text=text.lower()
+
+    text=re.sub('[^a-zA-Z]',' ',text)
+
+    text=re.sub('\s+',' ',text)
+
+    return text
+
+
+
+df["Clean_Resume"]=df["Resume"].apply(clean_text)
+
+
+
+# ---------------- MODEL ----------------
+
+
+vectorizer=TfidfVectorizer(
+    stop_words="english",
+    max_features=5000
 )
 
-# -------------------- BUTTON --------------------
-if st.button("🚀 Recommend Job"):
 
-    if resume.strip() == "":
-        st.warning("Please enter your resume.")
-    else:
-
-        result, score = recommend_jobs(resume)
-
-        st.success("Recommendation Completed")
-
-        st.subheader("🎯 Top Recommended Job Categories")
-
-        for i in range(len(result)):
-
-            category = result.iloc[i]["Category"]
-
-            percentage = round(score[i] * 100, 2)
-
-            st.write(f"### {i+1}. {category}")
-
-            st.progress(min(int(percentage), 100))
-
-            st.write(f"**Match Score : {percentage}%**")
-
-            st.markdown("---")
-
-# -------------------- FOOTER --------------------
-st.markdown("---")
-st.markdown(
-    "<center>Developed using ❤️ Python | NLP | Streamlit</center>",
-    unsafe_allow_html=True
+resume_vectors=vectorizer.fit_transform(
+    df["Clean_Resume"]
 )
+
+
+
+# ---------------- USER INPUT ----------------
+
+
+st.markdown("""
+<div class="card">
+
+<h2>📄 Upload Resume</h2>
+
+</div>
+""",unsafe_allow_html=True)
+
+
+
+resume_file=st.file_uploader(
+    "Upload your resume (.txt)",
+    type=["txt"]
+)
+
+
+
+if resume_file:
+
+
+    resume_text=resume_file.read().decode(
+        "utf-8"
+    )
+
+
+    cleaned_resume=clean_text(resume_text)
+
+
+
+    if st.button("🔍 Find Best Job Category"):
+
+
+
+        user_vector=vectorizer.transform(
+            [cleaned_resume]
+        )
+
+
+        similarity=cosine_similarity(
+            user_vector,
+            resume_vectors
+        )
+
+
+        index=similarity.argmax()
+
+
+        score=similarity[0][index]*100
+
+
+        category=df.iloc[index]["Category"]
+
+
+
+        st.markdown("""
+        <div class="card">
+
+        <h2>🎯 Recommended Job Category</h2>
+
+        </div>
+        """,unsafe_allow_html=True)
+
+
+
+        st.success(category)
+
+
+
+        st.metric(
+            "Matching Score",
+            f"{score:.2f}%"
+        )
+
+
+
+        st.progress(
+            int(score)
+        )
+
+
+
+        st.balloons()
+
+
+
+#
