@@ -1,309 +1,72 @@
 # Dataset link:
 # https://drive.google.com/file/d/1-UjSQT84jjA6tbFrBPyB1Jp68itRu_Zz/view?usp=sharing
 
+
 import streamlit as st
 import pandas as pd
 import re
-
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-
-# ---------------- PAGE CONFIG ----------------
-
-st.set_page_config(
-    page_title="AI Job Recommendation System",
-    page_icon="💼",
-    layout="wide"
-)
-
-
-# ---------------- CUSTOM CSS ----------------
+st.set_page_config(page_title="AI Job Recommendation System", page_icon="💼", layout="wide")
 
 st.markdown("""
 <style>
-
-.main{
-    background:#f8f9fc;
-}
-
-
-.title{
-    text-align:center;
-    font-size:50px;
-    font-weight:800;
-    background:linear-gradient(90deg,#667eea,#764ba2);
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
-    margin-top:20px;
-}
-
-
-.subtitle{
-    text-align:center;
-    font-size:22px;
-    color:#555;
-    margin-bottom:40px;
-}
-
-
-.card{
-
-    background:white;
-    padding:25px;
-    border-radius:20px;
-    box-shadow:0px 5px 20px rgba(0,0,0,0.10);
-    margin-top:20px;
-
-}
-
-
-.stButton button{
-
-    width:100%;
-    height:50px;
-    border-radius:15px;
-    background:linear-gradient(90deg,#667eea,#764ba2);
-    color:white;
-    font-size:18px;
-    font-weight:bold;
-
-}
-
-
-.result{
-
-    background:#e8f5e9;
-    padding:30px;
-    border-radius:20px;
-    text-align:center;
-    margin-top:25px;
-
-}
-
-
-.footer{
-
-    text-align:center;
-    color:#777;
-    margin-top:50px;
-
-}
-
+.main{background:#f8f9fc;}
+.title{text-align:center;font-size:50px;font-weight:800;background:linear-gradient(90deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.subtitle{text-align:center;font-size:20px;color:#666;margin-bottom:30px;}
+.card{background:white;padding:25px;border-radius:18px;box-shadow:0 8px 20px rgba(0,0,0,.1);}
+.stButton>button{width:100%;height:50px;border-radius:12px;background:linear-gradient(90deg,#667eea,#764ba2);color:white;font-size:18px;font-weight:bold;}
+.footer{margin-top:50px;padding:20px;border-radius:18px;background:linear-gradient(90deg,#667eea,#764ba2);color:white;text-align:center;font-size:20px;font-weight:600;}
 </style>
-
 """, unsafe_allow_html=True)
 
-
-
-# ---------------- TITLE ----------------
-
-
-st.markdown("""
-
-<div class="title">
-💼 AI Job Recommendation System
-</div>
-
-<div class="subtitle">
-
-Find Your Best Career Opportunity Using NLP 🤖
-<br>
-Resume Based Intelligent Job Category Recommendation
-
-</div>
-
-""", unsafe_allow_html=True)
-
-
-
-# ---------------- LOAD DATA ----------------
-
+st.markdown('<div class="title">💼 AI Job Recommendation System</div><div class="subtitle">Find Your Best Career Opportunity Using AI</div>', unsafe_allow_html=True)
 
 @st.cache_data
 def load_data():
+    return pd.read_csv("Resume.csv")
 
-    df = pd.read_csv("Resume.csv")
-
-    return df
-
-
-
-df = load_data()
-
-
-
-# ---------------- TEXT CLEANING ----------------
-
+df=load_data()
 
 def clean_text(text):
+    text=str(text).lower()
+    text=re.sub(r"[^a-zA-Z ]"," ",text)
+    return re.sub(r"\s+"," ",text).strip()
 
-    text = str(text)
-
-    text = text.lower()
-
-    text = re.sub(
-        r'[^a-zA-Z ]',
-        ' ',
-        text
-    )
-
-    text = re.sub(
-        r'\s+',
-        ' ',
-        text
-    )
-
-    return text.strip()
-
-
-
-# Dataset column check
-
-if "Resume" in df.columns:
-
-    resume_column = "Resume"
-
-elif "Resume_str" in df.columns:
-
-    resume_column = "Resume_str"
-
-else:
-
-    st.error("Resume column not found in dataset")
-
-    st.stop()
-
-
-
-df["Clean_Resume"] = df[resume_column].apply(clean_text)
-
-
-
-# ---------------- NLP MODEL ----------------
-
+resume_col="Resume" if "Resume" in df.columns else "Resume_str"
+df["Clean_Resume"]=df[resume_col].apply(clean_text)
 
 @st.cache_resource
-def train_model(data):
+def train(data):
+    vec=TfidfVectorizer(stop_words="english",max_features=5000)
+    mat=vec.fit_transform(data["Clean_Resume"])
+    return vec,mat
 
-    vectorizer = TfidfVectorizer(
-        stop_words="english",
-        max_features=5000
-    )
+vectorizer,resume_vectors=train(df)
 
-
-    vectors = vectorizer.fit_transform(
-        data["Clean_Resume"]
-    )
-
-
-    return vectorizer, vectors
-
-
-
-vectorizer, resume_vectors = train_model(df)
-
-
-
-# ---------------- USER INPUT ----------------
-
-
-st.markdown(
-"""
-<div class="card">
-
-<h2>📄 Upload Your Resume Details</h2>
-
-</div>
-""",
-unsafe_allow_html=True
-)
-
-
-user_resume = st.text_area(
-    "Paste your resume skills, education and experience",
-    height=200
-)
-
-
-
-# ---------------- BUTTON ----------------
-
+st.markdown('<div class="card"><h2>📄 Paste Your Resume</h2></div>', unsafe_allow_html=True)
+user_resume=st.text_area("Resume",height=220)
 
 if st.button("🚀 Recommend Job"):
-
-
-    if user_resume.strip()=="":
-
-        st.warning(
-            "Please enter resume details"
-        )
-
-
+    if not user_resume.strip():
+        st.warning("Please enter resume details.")
     else:
+        u=vectorizer.transform([clean_text(user_resume)])
+        sim=cosine_similarity(u,resume_vectors)[0]
+        top=sim.argsort()[-3:][::-1]
 
+        st.subheader("🏆 Top 3 Recommendations")
+        for i,idx in enumerate(top,1):
+            cat=df.iloc[idx]["Category"]
+            score=float(sim[idx]*100)
+            st.write(f"{i}. **{cat}**")
+            st.progress(min(int(score),100))
+            st.caption(f"Match Score: {score:.2f}%")
 
-        cleaned = clean_text(
-            user_resume
-        )
-
-
-        user_vector = vectorizer.transform(
-            [cleaned]
-        )
-
-
-        similarity = cosine_similarity(
-            user_vector,
-            resume_vectors
-        )
-
-
-        index = similarity.argmax()
-
-
-        category = df.iloc[index]["Category"]
-
-
-        score = similarity[0][index]*100
-
-
-
-        st.markdown(
-
-        f"""
-
-        <div class="result">
-
-        <h2>🎯 Recommended Career Category</h2>
-
-        <h1>{category}</h1>
-
-        <h3>Resume Match Score : {score:.2f}%</h3>
-
-        </div>
-
-        """,
-
-        unsafe_allow_html=True
-
-        )
-
-
-
-# ---------------- FOOTER ----------------
-
-
-st.markdown(
-
-"""
+st.markdown("""
 <div class="footer">
-
-✨ Powered by NLP | TF-IDF | Cosine Similarity
-
+🌟 <b>Your Dream Career Starts Here!</b> 🚀<br><br>
+Explore Opportunities • Build Your Future • Achieve Success 💼✨
 </div>
-""",
-
-unsafe_allow_html=True
-
-)
+""", unsafe_allow_html=True)
