@@ -8,7 +8,7 @@ import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-st.set_page_config(page_title="AI Job Recommendation System", page_icon="💼", layout="wide")
+st.set_page_config(page_title="Job Recommendation System", page_icon="💼", layout="wide")
 
 st.markdown("""
 <style>
@@ -35,12 +35,12 @@ def clean_text(text):
     return re.sub(r"\s+"," ",text).strip()
 
 resume_col="Resume" if "Resume" in df.columns else "Resume_str"
-df["Clean_Resume"]=df[resume_col].apply(clean_text)
+df["clean_resume"]=df[resume_col].apply(clean_text)
 
 @st.cache_resource
 def train(data):
     vec=TfidfVectorizer(stop_words="english",max_features=5000)
-    mat=vec.fit_transform(data["Clean_Resume"])
+    mat=vec.fit_transform(data["clean_resume"])
     return vec,mat
 
 vectorizer,resume_vectors=train(df)
