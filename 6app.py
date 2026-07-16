@@ -21,7 +21,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="title">💼 AI Job Recommendation System</div><div class="subtitle">Find Your Best Career Opportunity Using AI</div>', unsafe_allow_html=True)
+st.markdown('<div class="title">💼 Job Recommendation System</div><div class="subtitle">Find Your Best Career Opportunity Using AI</div>', unsafe_allow_html=True)
 
 @st.cache_data
 def load_data():
